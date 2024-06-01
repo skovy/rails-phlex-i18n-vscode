@@ -29,7 +29,7 @@ async function extractToTranslation() {
   const document = editor.document;
   const text = document
     .getText(selection)
-	// Trim leading and trailing quotes.
+    // Trim leading and trailing quotes.
     ?.replace(/^"(.*)$/, "$1")
     ?.replace(/(.*)"$/, "$1");
 
@@ -88,6 +88,8 @@ async function extractToTranslation() {
   editor.edit((editBuilder) => {
     editBuilder.replace(selection, translation);
   });
+
+  await editor.document.save();
 }
 
 export function deactivate() {}
