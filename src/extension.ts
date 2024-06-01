@@ -1,4 +1,8 @@
 import * as vscode from "vscode";
+import * as fs from "fs";
+import * as path from "path";
+import yaml from "js-yaml";
+
 import { snakeCase } from "lodash";
 
 export function activate(context: vscode.ExtensionContext) {
@@ -30,17 +34,32 @@ async function extractToTranslation() {
     return;
   }
 
+  const workspacePath = vscode.workspace.workspaceFolders?.[0].uri.path;
+  if (!workspacePath) {
+    vscode.window.showErrorMessage(
+      "No workspace folder found. Please open a workspace and try again."
+    );
+    return;
+  }
+
+  const translationFilePath = path.join(workspacePath, "config/locales/en.yml");
+  const translations = yaml.load(
+    fs.readFileSync(translationFilePath, "utf8")
+  ) as Record<string, any>;
+
   const key = await vscode.window.showInputBox({
     title: "Provide a key for the translation",
     value: snakeCase(text),
   });
-
   if (!key) {
     vscode.window.showErrorMessage("No key provided. Please provide a key.");
     return;
   }
 
-  const translation = `t(."${key}")`;
+  translations["en"][key] = text;
+  fs.writeFileSync(translationFilePath, yaml.dump(translations));
+
+  const translation = `t(".${key}")`;
   editor.edit((editBuilder) => {
     editBuilder.replace(selection, translation);
   });
