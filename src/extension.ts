@@ -1,26 +1,49 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
-import * as vscode from 'vscode';
+import * as vscode from "vscode";
+import { snakeCase } from "lodash";
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
+  console.log('"rails-phlex-i18n" is active!');
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "rails-phlex-i18n" is now active!');
+  let disposable = vscode.commands.registerCommand(
+    "rails-phlex-i18n.extractToTranslation",
+    extractToTranslation
+  );
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	let disposable = vscode.commands.registerCommand('rails-phlex-i18n.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from rails-phlex-i18n!');
-	});
-
-	context.subscriptions.push(disposable);
+  context.subscriptions.push(disposable);
 }
 
-// This method is called when your extension is deactivated
+async function extractToTranslation() {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) {
+    vscode.window.showErrorMessage(
+      "No active text editor found. Please open a file and select text to extract."
+    );
+    return;
+  }
+
+  const selection = editor.selection;
+  const text = editor.document.getText(selection);
+  if (!text) {
+    vscode.window.showErrorMessage(
+      "No text selected. Please select text to extract."
+    );
+    return;
+  }
+
+  const key = await vscode.window.showInputBox({
+    title: "Provide a key for the translation",
+    value: snakeCase(text),
+  });
+
+  if (!key) {
+    vscode.window.showErrorMessage("No key provided. Please provide a key.");
+    return;
+  }
+
+  const translation = `t(."${key}")`;
+  editor.edit((editBuilder) => {
+    editBuilder.replace(selection, translation);
+  });
+}
+
 export function deactivate() {}
