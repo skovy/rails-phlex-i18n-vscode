@@ -26,7 +26,13 @@ async function extractToTranslation() {
   }
 
   const selection = editor.selection;
-  const text = editor.document.getText(selection);
+  const document = editor.document;
+  const text = document
+    .getText(selection)
+	// Trim leading and trailing quotes.
+    ?.replace(/^"(.*)$/, "$1")
+    ?.replace(/(.*)"$/, "$1");
+
   if (!text) {
     vscode.window.showErrorMessage(
       "No text selected. Please select text to extract."
@@ -56,7 +62,26 @@ async function extractToTranslation() {
     return;
   }
 
-  translations["en"][key] = text;
+  // Get the relative path of the current file from the 'app/views/' directory
+  const filePath = document.uri.fsPath;
+  const relativePath = path.parse(
+    path.relative(path.join(workspacePath, "app/views"), filePath)
+  );
+  const computedPath = path
+    .join(relativePath.dir, relativePath.name)
+    .split(path.sep);
+  const translationPath = ["en", ...computedPath, key];
+
+  translationPath.reduce((acc, key, index) => {
+    if (index === translationPath.length - 1) {
+      acc[key] = text;
+    } else {
+      acc[key] = acc[key] || {};
+    }
+
+    return acc[key];
+  }, translations);
+
   fs.writeFileSync(translationFilePath, yaml.dump(translations));
 
   const translation = `t(".${key}")`;
