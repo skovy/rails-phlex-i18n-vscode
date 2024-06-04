@@ -1,6 +1,6 @@
 {
   "name": "rails-phlex-i18n",
-  "displayName": "rails-phlex-i18n",
+  "displayName": "Rails Phlex I18n",
   "description": "Extract i18n Translations from Rails Phlex Views",
   "icon": "assets/logo.png",
   "version": "0.0.2",
