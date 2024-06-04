@@ -71,7 +71,7 @@ async function extractToTranslation() {
     const computedPath = path
       .join(relativePath.dir, relativePath.name)
       .split(path.sep);
-    const translationPath = ["en", ...computedPath, key];
+    const translationPath = ["en", ...computedPath, ...key.split(".")];
 
     translationPath.reduce((acc, key, index) => {
       if (index === translationPath.length - 1) {
