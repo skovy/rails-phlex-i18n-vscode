@@ -44,8 +44,8 @@ async function extractToTranslation() {
     const text = document
       .getText(selection)
       // Trim leading and trailing quotes.
-      ?.replace(/^"(.*)$/, "$1")
-      ?.replace(/(.*)"$/, "$1");
+      ?.replace(/^\s*"(.*)$/, "$1")
+      ?.replace(/(.*)"\s*$/, "$1");
 
     if (!text) {
       vscode.window.showErrorMessage(
@@ -63,14 +63,48 @@ async function extractToTranslation() {
       return;
     }
 
+    const appControllersPath = path.join(workspacePath, "app/controllers");
+    const appViewsPath = path.join(workspacePath, "app/views");
+
     // Get the relative path of the current file from the 'app/views/' directory
     const filePath = document.uri.fsPath;
-    const relativePath = path.parse(
-      path.relative(path.join(workspacePath, "app/views"), filePath)
-    );
-    const computedPath = path
-      .join(relativePath.dir, relativePath.name)
-      .split(path.sep);
+
+    // Compute the key based on the relative path of the current file.
+    let computedPath;
+    if (filePath.startsWith(appControllersPath)) {
+      // Conntrollers.
+      const relativePath = path.parse(
+        path.relative(appControllersPath, filePath)
+      );
+
+      // TODO: can we infer this from LSP/AST?
+      const controllerAction = await vscode.window.showInputBox({
+        title: "What is the controller action name?",
+      });
+      if (!controllerAction) {
+        vscode.window.showErrorMessage(
+          "No controller action provided. Please provide a controller action."
+        );
+        return;
+      }
+
+      computedPath = path
+        .join(relativePath.dir, relativePath.name.replace("_controller", ""))
+        .split(path.sep)
+        .concat(controllerAction);
+    } else if (filePath.startsWith(appViewsPath)) {
+      // Phlex views.
+      const relativePath = path.parse(path.relative(appViewsPath, filePath));
+      computedPath = path
+        .join(relativePath.dir, relativePath.name)
+        .split(path.sep);
+    } else {
+      vscode.window.showErrorMessage(
+        "The current file is not in the 'app/views/' or 'app/controllers/' directory. Please open a file from the 'app/views/' or 'app/controllers/' directory."
+      );
+      return;
+    }
+
     const translationPath = ["en", ...computedPath, ...key.split(".")];
 
     translationPath.reduce((acc, key, index) => {
