@@ -83,12 +83,14 @@ const provideHover: vscode.HoverProvider["provideHover"] = async (
   const line = lineCounter.linePos(offset!);
 
   const contents = new vscode.MarkdownString(
-    `**${
+    `${
       node?.value?.value
-    }** <br> [Open translation key](command:rails-phlex-i18n.openTranslation?${JSON.stringify(
+    }\n\n---\n\n[View translation](command:rails-phlex-i18n.openTranslation?${JSON.stringify(
       [line.line - 1, line.col - 1]
-    )})`
+    )} "Open key in translations file")`
   );
+
+  contents.supportHtml = true;
   contents.isTrusted = true;
 
   return new vscode.Hover(contents, range);
