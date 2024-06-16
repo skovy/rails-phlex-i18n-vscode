@@ -48,6 +48,7 @@ const provideHover: vscode.HoverProvider["provideHover"] = async (
 
   const translationPath = await getComputedTranslationPathForCurrentEditor(
     document,
+    range,
     key
   );
 
@@ -138,6 +139,7 @@ async function extractToTranslation() {
 
     const translationPath = await getComputedTranslationPathForCurrentEditor(
       document,
+      selection,
       key
     );
 
@@ -245,6 +247,7 @@ const findNodeByPath = (
  */
 const getComputedTranslationPathForCurrentEditor = async (
   document: vscode.TextDocument,
+  range: vscode.Range,
   key: string
 ) => {
   const workspacePath = getWorkspacePath();
@@ -264,10 +267,14 @@ const getComputedTranslationPathForCurrentEditor = async (
       path.relative(appControllersPath, filePath)
     );
 
-    // TODO: can we infer this from LSP/AST?
-    const controllerAction = await vscode.window.showInputBox({
-      title: "What is the controller action name?",
-    });
+    // First try to infer the controller action from the current file.
+    // Then fallback to asking the user for the controller action.
+    let controllerAction = getControllerAction(document, range);
+    if (!controllerAction) {
+      controllerAction = await vscode.window.showInputBox({
+        title: "What is the controller action name?",
+      });
+    }
     if (!controllerAction) {
       vscode.window.showErrorMessage(
         "No controller action provided. Please provide a controller action."
@@ -294,5 +301,20 @@ const getComputedTranslationPathForCurrentEditor = async (
 
   return ["en", ...computedPath, ...key.split(".")];
 };
+
+function getControllerAction(
+  document: vscode.TextDocument,
+  range: vscode.Range
+): string | undefined {
+  const line = range.start.line;
+
+  for (let i = line; i >= 0; i--) {
+    const lineText = document.lineAt(i).text.trim();
+    const match = lineText.match(/^def\s+(\w+)/);
+    if (match) {
+      return match[1];
+    }
+  }
+}
 
 export function deactivate() {}
