@@ -32,12 +32,14 @@ const provideHover: vscode.HoverProvider["provideHover"] = async (
   document,
   position
 ) => {
-  // TODO: handle variables, e.g. `t(".#{key}")` & `t(".#{key}", var: value)`
-  const range = document.getWordRangeAtPosition(position, /\bt\(\"\.[^"]+\"\)/);
+  const range = document.getWordRangeAtPosition(
+    position,
+    /\bt\(\"\.[^"]+\"(.*)\)/
+  );
   if (!range) return;
 
   const text = document.getText(range);
-  const match = text.match(/t\(\"\.([^"]+)\"\)/);
+  const match = text.match(/t\(\"\.([^"]+)\"(.*)\)/);
   if (!match) return;
 
   const key = match[1];
@@ -60,25 +62,9 @@ const provideHover: vscode.HoverProvider["provideHover"] = async (
     }
   );
 
-  const findNodeByPath = (
-    keys: string[],
-    value: YAML.YAMLMap<YAML.Scalar, YAML.YAMLMap | YAML.Scalar> | null
-  ): YAML.Pair<YAML.Scalar, YAML.Scalar> | undefined => {
-    const [first, ...rest] = keys;
-
-    const currentItem = value?.items.find((item) => item.key.value === first);
-
-    if (rest.length === 0) {
-      return currentItem as YAML.Pair<YAML.Scalar, YAML.Scalar>;
-    } else {
-      return findNodeByPath(
-        rest,
-        currentItem?.value as YAML.YAMLMap<YAML.Scalar, YAML.YAMLMap>
-      );
-    }
-  };
-
   const node = findNodeByPath(translationPath, parsed.contents);
+  if (!node) return;
+
   const offset = node?.key.srcToken?.offset;
   const line = lineCounter.linePos(offset!);
 
@@ -186,24 +172,31 @@ async function extractToTranslation() {
   });
 }
 
-// Helper functions.
+// ================
+// Helper functions
+// ================
+
 const getActiveEditor = () => {
   const editor = vscode.window.activeTextEditor;
+
   if (!editor) {
     vscode.window.showErrorMessage(
       "No active text editor found. Please open a file and select text to extract."
     );
   }
+
   return editor;
 };
 
 const getWorkspacePath = () => {
   const workspacePath = vscode.workspace.workspaceFolders?.[0].uri.path;
+
   if (!workspacePath) {
     vscode.window.showErrorMessage(
       "No workspace folder found. Please open a workspace and try again."
     );
   }
+
   return workspacePath;
 };
 
@@ -213,6 +206,40 @@ const getTranslationFilePath = () => {
   if (workspacePath) return path.join(workspacePath, "config/locales/en.yml");
 };
 
+/**
+ * Recursively find a node in a YAML AST by a given "path" of keys.
+ *
+ * For example, given the following YAML:
+ *
+ * ```yaml
+ * en:
+ *  users:
+ *    title: "Users"
+ * ```
+ *
+ * The path `["en", "users", "title"]` would return the node with the value `"Users"`.
+ */
+const findNodeByPath = (
+  keys: string[],
+  value: YAML.YAMLMap<YAML.Scalar, YAML.YAMLMap | YAML.Scalar> | null
+): YAML.Pair<YAML.Scalar, YAML.Scalar> | undefined => {
+  const [first, ...rest] = keys;
+
+  const currentItem = value?.items.find((item) => item.key.value === first);
+
+  if (rest.length === 0) {
+    return currentItem as YAML.Pair<YAML.Scalar, YAML.Scalar>;
+  } else {
+    return findNodeByPath(
+      rest,
+      currentItem?.value as YAML.YAMLMap<YAML.Scalar, YAML.YAMLMap>
+    );
+  }
+};
+
+/**
+ * Compute the translation path based on the current file's path and assumptions around Rails.
+ */
 const getComputedTranslationPathForCurrentEditor = async (
   document: vscode.TextDocument,
   key: string
