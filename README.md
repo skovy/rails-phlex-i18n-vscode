@@ -4,6 +4,8 @@ Rails Phlex I18n is a VSCode extension to make working with translations in a Ra
 
 It helps extract existing strings from Rails Phlex views into the translations files, displays a preview of the translation on hover, and links directly to the translation key.
 
+![demo](/assets/demo.gif)
+
 ## Features
 
 - Support for `app/views` and `app/controllers` using relative keys.
