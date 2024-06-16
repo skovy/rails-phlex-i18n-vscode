@@ -1,8 +1,6 @@
 import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
-// TODO: remove.
-import yaml from "js-yaml";
 import { exec } from "child_process";
 import { snakeCase } from "lodash";
 import YAML from "yaml";
@@ -159,7 +157,12 @@ async function extractToTranslation() {
     });
   }
 
-  fs.writeFileSync(translationFilePath, yaml.dump(translations));
+  fs.writeFileSync(
+    translationFilePath,
+    YAML.stringify(translations, {
+      schema: "yaml-1.1",
+    })
+  );
   await editor.document.save();
 
   exec("bundle exec i18n-tasks normalize", { cwd: workspacePath }, (error) => {

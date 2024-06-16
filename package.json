@@ -36,7 +36,6 @@
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@types/js-yaml": "^4.0.9",
     "@types/lodash": "^4.17.4",
     "@types/mocha": "^10.0.6",
     "@types/node": "18.x",
@@ -49,7 +48,6 @@
     "typescript": "^5.4.5"
   },
   "dependencies": {
-    "js-yaml": "^4.1.0",
     "lodash": "^4.17.21",
     "yaml": "^2.4.5"
   }
