@@ -3,7 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { exec } from "child_process";
 import { snakeCase } from "lodash";
-import YAML, { Range } from "yaml";
+import YAML from "yaml";
 
 export function activate(context: vscode.ExtensionContext) {
   console.log('"rails-phlex-i18n" is active!');
@@ -104,10 +104,51 @@ const yamlProvideHover: vscode.HoverProvider["provideHover"] = async (
   // Strip the "en" prefix since it's not used for anything in practice.
   const [_en, ...absoluteKey] = keyPath;
 
-  // TODO: lookup matching file.
+  // Scalar means the key contains a string value (not another map).
+  // If it's not a scalar, it could be a key in a file or a file so we don't show the hover.
+  if (!isScalar) return;
 
+  const workspacePath = getWorkspacePath();
+  if (!workspacePath) return;
+
+  const currentKeyPathAndFile = [...absoluteKey];
+  let foundFilePath: string | null = null;
+  while (currentKeyPathAndFile.length > 0) {
+    const fileName = currentKeyPathAndFile.pop();
+    const viewFilePath = path.join(
+      workspacePath,
+      "app/views",
+      ...currentKeyPathAndFile,
+      `${fileName}.rb`
+    );
+
+    if (fs.existsSync(viewFilePath)) {
+      foundFilePath = viewFilePath;
+      break;
+    }
+
+    const controllerFilePath = path.join(
+      workspacePath,
+      "app/controllers",
+      ...currentKeyPathAndFile,
+      `${fileName}_controller.rb`
+    );
+
+    if (fs.existsSync(controllerFilePath)) {
+      foundFilePath = controllerFilePath;
+      break;
+    }
+  }
+
+  if (!foundFilePath) return;
+
+  const relativeFilePath = path.relative(workspacePath, foundFilePath);
   const contents = new vscode.MarkdownString(
-    `Absolute key: \`${absoluteKey.join(".")}\` \n\n isScalar: ${isScalar}`
+    `Absolute key: \`${absoluteKey.join(
+      "."
+    )}\`\n\nFile path: \`${relativeFilePath}\`\n\n---\n\n[Open file](command:vscode.open?${JSON.stringify(
+      [vscode.Uri.file(foundFilePath)]
+    )} "Open file")`
   );
 
   contents.supportHtml = true;
