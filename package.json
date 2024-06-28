@@ -15,7 +15,8 @@
     "Other"
   ],
   "activationEvents": [
-    "onLanguage:ruby"
+    "onLanguage:ruby",
+    "onLanguage:yaml"
   ],
   "main": "./out/extension.js",
   "contributes": {

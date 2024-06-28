@@ -3,7 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { exec } from "child_process";
 import { snakeCase } from "lodash";
-import YAML from "yaml";
+import YAML, { Range } from "yaml";
 
 export function activate(context: vscode.ExtensionContext) {
   console.log('"rails-phlex-i18n" is active!');
@@ -24,6 +24,11 @@ export function activate(context: vscode.ExtensionContext) {
     provideHover,
   });
   context.subscriptions.push(translationHover);
+
+  const usageHover = vscode.languages.registerHoverProvider("yaml", {
+    provideHover: yamlProvideHover,
+  });
+  context.subscriptions.push(usageHover);
 }
 
 const provideHover: vscode.HoverProvider["provideHover"] = async (
@@ -80,6 +85,92 @@ const provideHover: vscode.HoverProvider["provideHover"] = async (
 
   return new vscode.Hover(contents, range);
 };
+
+const yamlProvideHover: vscode.HoverProvider["provideHover"] = async (
+  document,
+  position
+) => {
+  const translationFilePath = getTranslationFilePath();
+  if (!translationFilePath) return;
+
+  // Only show the hover for the translations file.
+  if (document.uri.fsPath !== translationFilePath) return;
+
+  const { keyPath, isScalar } = getKeyPathAtPosition(document, position);
+
+  // Only show the hover if we found a matching key.
+  if (!keyPath) return;
+
+  // Strip the "en" prefix since it's not used for anything in practice.
+  const [_en, ...absoluteKey] = keyPath;
+
+  // TODO: lookup matching file.
+
+  const contents = new vscode.MarkdownString(
+    `Absolute key: \`${absoluteKey.join(".")}\` \n\n isScalar: ${isScalar}`
+  );
+
+  contents.supportHtml = true;
+  contents.isTrusted = true;
+
+  return new vscode.Hover(contents);
+};
+
+function getKeyPathAtPosition(
+  document: vscode.TextDocument,
+  position: vscode.Position
+): { keyPath: string[] | null; isScalar: boolean } {
+  const text = document.getText();
+  const yamlDoc = YAML.parseDocument(text);
+
+  const keyPath: string[] = [];
+  let isScalar: boolean = false;
+
+  function traverse(node: any, currentPath: string[] = []): boolean {
+    if (YAML.isMap(node)) {
+      for (const item of node.items) {
+        if (YAML.isPair<YAML.Scalar<string>, YAML.Node>(item)) {
+          const key = item.key;
+          const value = item.value;
+          const newPath = [...currentPath, key.value];
+
+          // When the key range contains the position that means we've found the exact node.
+          // We can stop traversing and return the path.
+          if (
+            key &&
+            key.range &&
+            key.range[0] <= document.offsetAt(position) &&
+            key.range[1] >= document.offsetAt(position)
+          ) {
+            keyPath.push(key.value);
+            isScalar = YAML.isScalar(value);
+            return true;
+          }
+
+          // Otherwise, check to see if this node's value range contains the position.
+          if (
+            value &&
+            value.range &&
+            value.range[0] <= document.offsetAt(position) &&
+            value.range[1] >= document.offsetAt(position)
+          ) {
+            keyPath.push(key.value);
+
+            return traverse(value, newPath);
+          }
+        }
+      }
+    }
+
+    return false;
+  }
+
+  if (traverse(yamlDoc.contents)) {
+    return { keyPath, isScalar };
+  }
+
+  return { keyPath: null, isScalar: false };
+}
 
 const openTranslation = async (line: number, column: number) => {
   const translationFilePath = getTranslationFilePath();
