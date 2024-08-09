@@ -387,6 +387,7 @@ const getComputedTranslationPathForCurrentEditor = async (
 
   const appControllersPath = path.join(workspacePath, "app/controllers");
   const appViewsPath = path.join(workspacePath, "app/views");
+  const specViewsPath = path.join(workspacePath, "spec/views");
 
   // Get the relative path of the current file from the 'app/views/' directory
   const filePath = document.uri.fsPath;
@@ -424,9 +425,15 @@ const getComputedTranslationPathForCurrentEditor = async (
     computedPath = path
       .join(relativePath.dir, relativePath.name)
       .split(path.sep);
+  } else if (filePath.startsWith(specViewsPath)) {
+    // View specs.
+    const relativePath = path.parse(path.relative(specViewsPath, filePath));
+    computedPath = path
+      .join(relativePath.dir, relativePath.name.replace("_spec", ""))
+      .split(path.sep);
   } else {
     vscode.window.showErrorMessage(
-      "The current file is not in the 'app/views/' or 'app/controllers/' directory. Please open a file from the 'app/views/' or 'app/controllers/' directory."
+      "The current file is not in the 'app/views/', 'spec/views/', or 'app/controllers/' directory."
     );
     return [];
   }
