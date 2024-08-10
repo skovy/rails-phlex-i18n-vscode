@@ -71,9 +71,9 @@ const provideHover: vscode.HoverProvider["provideHover"] = async (
   const line = lineCounter.linePos(offset!);
 
   const contents = new vscode.MarkdownString(
-    `${
-      node?.value?.value
-    }\n\n---\n\n[View translation](command:rails-phlex-i18n.openTranslation?${JSON.stringify(
+    `${getNodeContent(
+      node
+    )}\n\n---\n\n[View translation](command:rails-phlex-i18n.openTranslation?${JSON.stringify(
       [line.line - 1, line.col - 1]
     )} "Open key in translations file")`
   );
@@ -357,7 +357,9 @@ const getTranslationFilePath = () => {
 const findNodeByPath = (
   keys: string[],
   value: YAML.YAMLMap<YAML.Scalar, YAML.YAMLMap | YAML.Scalar> | null
-): YAML.Pair<YAML.Scalar, YAML.Scalar> | undefined => {
+):
+  | YAML.Pair<YAML.Scalar, YAML.Scalar | YAML.YAMLMap<YAML.Scalar, YAML.Scalar>>
+  | undefined => {
   const [first, ...rest] = keys;
 
   const currentItem = value?.items.find((item) => item.key.value === first);
@@ -369,6 +371,30 @@ const findNodeByPath = (
       rest,
       currentItem?.value as YAML.YAMLMap<YAML.Scalar, YAML.YAMLMap>
     );
+  }
+};
+
+/**
+ * Given a YAML node, return the content as a string.
+ *
+ * This handles "leaf" nodes (scalars) and "branch" nodes (maps).
+ */
+const getNodeContent = (
+  node: YAML.Pair<
+    YAML.Scalar,
+    YAML.Scalar | YAML.YAMLMap<YAML.Scalar, YAML.Scalar>
+  >
+) => {
+  if (!node.value) return;
+
+  if ("items" in node.value && node.value?.items?.length > 0) {
+    return node.value.items
+      .map((item) => {
+        return `- \`${item.key.value}\`: ${item.value?.value}`;
+      })
+      .join("\n");
+  } else if ("value" in node.value) {
+    return node.value.value;
   }
 };
 
