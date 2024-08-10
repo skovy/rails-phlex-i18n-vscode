@@ -35,14 +35,12 @@ const provideHover: vscode.HoverProvider["provideHover"] = async (
   document,
   position
 ) => {
-  const range = document.getWordRangeAtPosition(
-    position,
-    /\bt\(\"\.[^"]+\"(.*)\)/
-  );
+  const range = getRangeFromTextPosition(document, position);
   if (!range) return;
 
   const text = document.getText(range);
-  const match = text.match(/t\(\"\.([^"]+)\"(.*)\)/);
+
+  const match = text.match(/t\(\s*\"\.([^"]+)\"[^\)]*\)/);
   if (!match) return;
 
   const key = match[1];
@@ -53,7 +51,7 @@ const provideHover: vscode.HoverProvider["provideHover"] = async (
 
   const translationPath = await getComputedTranslationPathForCurrentEditor(
     document,
-    range,
+    range.start,
     key
   );
 
@@ -271,7 +269,7 @@ async function extractToTranslation() {
 
     const translationPath = await getComputedTranslationPathForCurrentEditor(
       document,
-      selection,
+      selection.start,
       key
     );
 
@@ -379,7 +377,7 @@ const findNodeByPath = (
  */
 const getComputedTranslationPathForCurrentEditor = async (
   document: vscode.TextDocument,
-  range: vscode.Range,
+  position: vscode.Position,
   key: string
 ) => {
   const workspacePath = getWorkspacePath();
@@ -402,7 +400,7 @@ const getComputedTranslationPathForCurrentEditor = async (
 
     // First try to infer the controller action from the current file.
     // Then fallback to asking the user for the controller action.
-    let controllerAction = getControllerAction(document, range);
+    let controllerAction = getControllerAction(document, position);
     if (!controllerAction) {
       controllerAction = await vscode.window.showInputBox({
         title: "What is the controller action name?",
@@ -441,11 +439,36 @@ const getComputedTranslationPathForCurrentEditor = async (
   return ["en", ...computedPath, ...key.split(".")];
 };
 
+const TRANSLATION_REGEX = /t\(\s*\"\.([^"]+)\"[^\)]*\)/g;
+
+function getRangeFromTextPosition(
+  document: vscode.TextDocument,
+  position: vscode.Position
+) {
+  // There is also the `document.getWordRangeAtPosition` helper,
+  // but it doesn't work well when the translation is on multiple lines.
+  const text = document.getText();
+
+  let match;
+  while ((match = TRANSLATION_REGEX.exec(text)) !== null) {
+    const startPos = document.positionAt(match.index);
+    const endPos = document.positionAt(match.index + match[0].length);
+
+    // There could be multiple matches in the same file,
+    // so we need to check if the position is within the range.
+    if (startPos.isBeforeOrEqual(position) && endPos.isAfterOrEqual(position)) {
+      return new vscode.Range(startPos, endPos);
+    }
+  }
+
+  return null;
+}
+
 function getControllerAction(
   document: vscode.TextDocument,
-  range: vscode.Range
+  position: vscode.Position
 ): string | undefined {
-  const line = range.start.line;
+  const line = position.line;
 
   for (let i = line; i >= 0; i--) {
     const lineText = document.lineAt(i).text.trim();
