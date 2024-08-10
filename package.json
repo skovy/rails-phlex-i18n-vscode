@@ -3,7 +3,7 @@
   "displayName": "Rails Phlex I18n",
   "description": "Extract i18n Translations from Rails Phlex Views",
   "icon": "assets/logo.png",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/skovy/rails-phlex-i18n-vscode"
